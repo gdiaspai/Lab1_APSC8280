@@ -1,0 +1,323 @@
+---
+title: "Lab1"
+author: "Gabriel Dias Paiao"
+date: "4/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+'https://github.com/toyetund-nmdp/teaching_APSC8280'
+
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+
+label = read.csv("dictionary.csv")
+label = mutate(label, COUNTY_STATE = as.factor(COUNTY_CODE):as.factor(STATE_CODE))
+
+data_2014 = read.csv("2014.csv")
+data_2015 = read.csv("2015.csv")
+data = rbind.data.frame(data_2014, data_2015)
+
+pesticide=left_join(data, label)
+
+```
+
+
+## Problem 1 - Question 1
+```{r, message = F}
+sort(tapply(pesticide$HIGH_ESTIMATE, pesticide$COMPOUND, median, na.rm=T), decreasing = T)[1:10]
+
+```
+
+## Problem 1 - Question 2
+```{r, message = F}
+sort(tapply(pesticide$HIGH_ESTIMATE, pesticide$COMPOUND, sum, na.rm=T), decreasing = T)[1]
+
+sort(tapply(pesticide$HIGH_ESTIMATE[pesticide$COMPOUND=="Glyphosate"], pesticide$STATE[pesticide$COMPOUND=="Glyphosate"], sum, na.rm=T), decreasing = T)[1]
+
+sort(tapply(pesticide$HIGH_ESTIMATE[pesticide$COMPOUND=="Glyphosate"], pesticide$STATE[pesticide$COMPOUND=="Glyphosate"], sum, na.rm=T), decreasing = F)[1]
+
+```
+
+## Problem 1 - Question 3
+```{r, message = F}
+pest_low_est = drop_na(pesticide, LOW_ESTIMATE)
+
+pest_low_est$perc_diff = ((pest_low_est$HIGH_ESTIMATE - pest_low_est$LOW_ESTIMATE) / ((pest_low_est$HIGH_ESTIMATE + pest_low_est$LOW_ESTIMATE) / 2)) *100
+
+sort(tapply(pest_low_est$perc_diff, pest_low_est$STATE, mean, na.rm=T), decreasing = F)[1]
+
+```
+
+## Problem 1 - Question 4
+```{r, message = F}
+count_state = pesticide %>%
+  group_by(STATE) %>%
+  summarize(count = n_distinct(COMPOUND)) %>%
+  arrange(desc(count))
+
+print(count_state, n=1)
+
+```
+
+## Problem 1 - Question 5
+```{r, message = FALSE}
+amount_county = pesticide %>%
+  group_by(COUNTY_STATE) %>%
+  summarize(total = sum(HIGH_ESTIMATE)) %>%
+  arrange(desc(total))
+
+right_join(label, amount_county)[1,1:6]
+```
+
+## Problem 1 - Question 6
+```{r, message = FALSE}
+amount_county = pesticide %>%
+  group_by(STATE) %>%
+  summarize(total = n_distinct(COUNTY)) %>%
+  arrange(desc(total))
+
+print(amount_county, n=1)
+```
+
+## Problem 1 - Question 7
+```{r, message = FALSE}
+amount_by_state_2014 = pesticide %>%
+  filter(YEAR == 2014) %>%
+  group_by(STATE, add = T) %>%
+  summarize(amount = median(HIGH_ESTIMATE), n_counties = n_distinct(COUNTY)) %>%
+  mutate(usage_per_county = amount / n_counties) %>%
+  mutate(YEAR = 2014) %>%
+  arrange(desc(usage_per_county))
+  
+amount_by_state_2014[1:10,-c(2,3)]
+
+
+amount_by_state_2015 = pesticide %>%
+  filter(YEAR == 2015) %>%
+  group_by(STATE, add = T) %>%
+  summarize(amount = median(HIGH_ESTIMATE), n_counties = n_distinct(COUNTY)) %>%
+  mutate(usage_per_county = amount / n_counties) %>%
+  mutate(YEAR = 2015) %>%
+  arrange(desc(usage_per_county))
+  
+amount_by_state_2015[1:10,-c(2,3)]
+
+```
+
+
+## Problem 1 - Question 8
+```{r, message = FALSE}
+amount_2014 = filter(pesticide, YEAR=="2014") %>%
+  group_by(STATE) %>%
+  summarize(total = n_distinct(COMPOUND)) %>%
+  arrange(desc(total))
+
+print(amount_2014, n=1)
+
+amount_2015 = filter(pesticide, YEAR=="2015") %>%
+  group_by(STATE) %>%
+  summarize(total = n_distinct(COMPOUND)) %>%
+  arrange(desc(total))
+
+print(amount_2015, n=1)
+
+```
+
+## Problem 1 - Question 9
+```{r, message = FALSE}
+top_pesticide = pesticide %>%
+  group_by(STATE) %>%
+  summarize(total = median(HIGH_ESTIMATE)) %>%
+  arrange(desc(total))
+
+print(top_pesticide, n=5)
+
+```
+
+## Problem 1 - Question 10
+```{r, message = FALSE}
+most_states = pesticide %>%
+  group_by(COMPOUND) %>%
+  summarize(total = n_distinct(STATE)) %>%
+  arrange(desc(total))
+
+print(most_states, n=50)
+
+```
+
+## Problem 1 - Question 11
+```{r, message = FALSE}
+pesticide_state14 = filter(pesticide, YEAR =="2014") %>%
+  group_by(COMPOUND) %>%
+  summarize(total_2014 = n_distinct(STATE)) %>%
+  arrange(desc(total_2014))
+
+pesticide_state15 = filter(pesticide, YEAR =="2015") %>%
+  group_by(COMPOUND) %>%
+  summarize(total_2015 = n_distinct(STATE)) %>%
+  arrange(desc(total_2015))
+
+state_14_15 = mutate(left_join(pesticide_state14, pesticide_state15), pct_increase = ((total_2015-total_2014)/total_2014)*100)
+
+print(arrange(state_14_15, desc(pct_increase)), n=1)
+
+```
+
+## Problem 1 - Question 12
+```{r, message = FALSE}
+use_state14 = filter(pesticide, YEAR =="2014") %>%
+  group_by(STATE) %>%
+  summarize(total_2014 = median(HIGH_ESTIMATE)) %>%
+  arrange(desc(total_2014))
+
+use_state15 = filter(pesticide, YEAR =="2015") %>%
+  group_by(STATE) %>%
+  summarize(total_2015 = median(HIGH_ESTIMATE)) %>%
+  arrange(desc(total_2015))
+
+state_14_15 = mutate(left_join(use_state14, use_state15), pct_increase = ((total_2015-total_2014)/total_2014)*100)
+
+print(arrange(state_14_15, desc(pct_increase)), n=5)
+
+```
+
+## Problem 1 - Question 13 - We can see that the datasets for 2014 and 2015 do not comprehend the same range of estimates.
+```{r, message = FALSE}
+
+ggplot(data = pesticide) +
+  geom_smooth(mapping = aes(y = HIGH_ESTIMATE, x = LOW_ESTIMATE)) +
+  facet_wrap(facet = "YEAR")
+  
+rm(list = ls())
+```
+
+
+```{r, message = FALSE, include = FALSE}
+accidents = read.csv("Accidents0514.csv")
+vehicles = read.csv("Vehicles0514.csv")
+casualties = read.csv("Casualties0514.csv")
+head(accidents); dim(accidents)
+head(casualties); dim(casualties)
+head(vehicles); dim(vehicles)
+
+```
+
+
+## Problem 2 - Question 1
+```{r, message = FALSE}
+prop_acc = accidents %>%
+  count(Urban_or_Rural_Area)
+
+prop_acc = mutate(prop_acc, prop = n / sum(n)); prop_acc
+
+```
+
+## Problem 2 - Question 2 - There does not seem to exist a relationship between speed limit and proportion of accidents.
+```{r, message = FALSE}
+speed = accidents %>%
+  group_by(Speed_limit) %>%
+  summarize(total = sum(Number_of_Casualties))
+
+speed = mutate(speed, prop = total / sum(total))
+
+cor(speed$Speed_limit, speed$prop)
+plot(speed$Speed_limit, speed$prop)
+```
+
+## Problem 2 - Question 3
+```{r, message = FALSE}
+prop_hour = accidents %>%
+  mutate(hours = hm(Time, quiet = T)) %>%
+  mutate(hr = hour(hours)) %>%
+  left_join(casualties) %>%
+  group_by(hr) %>%
+  group_by(Casualty_Severity, add = TRUE) %>%
+  summarize(total_fat = sum(Number_of_Casualties)) %>%
+  group_by(hr) %>%
+  mutate(prop_fat = total_fat / sum(total_fat))
+
+prop_hour = filter(prop_hour, Casualty_Severity == 1)
+
+plot(prop_hour$prop_fat~prop_hour$hr)
+
+```
+
+## Problem 2 - Question 4
+```{r, message = FALSE}
+trend_year = accidents %>%
+  separate(Date, c("day", "month", "year")) %>%
+  group_by(year) %>%
+  count()
+
+lm(trend_year$n~as.numeric(trend_year$year))$coefficients[2]
+
+```
+
+## Problem 2 - Question 5
+```{r, message = FALSE}
+male_female = vehicles %>%
+  filter(Vehicle_Type == 9) %>%
+  left_join(casualties) %>%
+  filter(Sex_of_Driver %in% c(1,2)) %>%
+  left_join(accidents) %>%
+  group_by(Sex_of_Driver) %>%
+  group_by(Accident_Severity, add = TRUE) %>%
+  count() %>%
+  group_by(Sex_of_Driver) %>%
+  mutate(prop_fat = n / sum(n)) %>%
+  filter(Accident_Severity == 1)
+
+prop_m_f = male_female$prop_fat[1]/male_female$prop_fat[2]; prop_m_f
+  
+```
+
+## Problem 2 - Question 6
+```{r, message = FALSE}
+decay = vehicles %>%
+  filter(Age_of_Driver >= 17) %>%
+  left_join(accidents) %>%
+  group_by(Age_of_Driver) %>%
+  count()
+
+m1 = lm(log(decay$n)~decay$Age_of_Driver); m1$coefficients[2]
+
+ggplot(decay, aes(x = decay$Age_of_Driver, y = decay$n)) +
+  geom_point() +
+  geom_line(data = fortify(m1), aes(x = decay$Age_of_Driver, y = exp(fitted(m1))))
+
+```
+
+## Problem 2 - Question 7
+```{r, message = FALSE}
+count_nice_soj = vehicles %>%
+  left_join(accidents) %>%
+  filter(Skidding_and_Overturning %in% c(1,2,3,4,5)) %>%
+  filter(Weather_Conditions %in% c(1)) %>%
+  count()
+
+count_nice_none = vehicles %>%
+  left_join(accidents) %>%
+  filter(Skidding_and_Overturning %in% c(0)) %>%
+  filter(Weather_Conditions %in% c(1)) %>%
+  count()
+
+count_rs_none = vehicles %>%
+  left_join(accidents) %>%
+  filter(Skidding_and_Overturning %in% c(0)) %>%
+  filter(Weather_Conditions %in% c(2,3,5,6)) %>%
+  count()
+
+count_rs_soj = vehicles %>%
+  left_join(accidents) %>%
+  filter(Skidding_and_Overturning %in% c(1,2,3,4,5)) %>%
+  filter(Weather_Conditions %in% c(2,3,5,6)) %>%
+  count()
+
+ratio_nice_weather = count_nice_soj / (count_nice_soj + count_nice_none)
+ratio_rs_weather = count_rs_soj / (count_rs_soj + count_rs_none)
+
+likelihood = ratio_rs_weather/ratio_nice_weather; likelihood
+
+```
